@@ -24,7 +24,10 @@ export class Article {
     is_visible: boolean;
 
     @Prop({ required: true, index: true })
-    user_id: number;
+    user_uuid: number;
+
+    @Prop({ type: { name: String, avatar: String }, default: {} })
+    user: { name: string; avatar: string };
 
     @Prop({ type: [Number], default: [] })
     users_like: number[];

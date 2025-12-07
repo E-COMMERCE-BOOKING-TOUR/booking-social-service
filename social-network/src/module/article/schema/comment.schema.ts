@@ -14,6 +14,9 @@ export class Comment {
     @Prop({ required: true })
     user_id: number;
 
+    @Prop({ type: { name: String, avatar: String }, default: {} })
+    user: { name: string; avatar: string };
+
     @Prop({ type: String, default: null })
     parent_id: string | null;
 

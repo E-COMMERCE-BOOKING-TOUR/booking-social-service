@@ -27,6 +27,9 @@ export class ArticleDTO {
     user_id: number;
 
     @IsOptional()
+    user?: { name: string; avatar: string };
+
+    @IsOptional()
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => ArticleImageDTO)

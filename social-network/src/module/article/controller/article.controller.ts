@@ -51,4 +51,9 @@ export class ArticleController {
     async addComment(@Payload() dto: any) {
         return this.articleService.addComment(dto);
     }
+
+    @MessagePattern('get_popular_articles')
+    async getPopularArticles(@Payload() limit: number) {
+        return this.articleService.getPopularArticles(limit);
+    }
 }

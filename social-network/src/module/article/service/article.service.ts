@@ -79,4 +79,8 @@ export class ArticleService {
 
         return comment;
     }
+
+    async getPopularArticles(limit: number): Promise<Article[]> {
+        return this.articleModel.find({ is_visible: true }).sort({ created_at: -1 }).limit(limit).exec();
+    }
 }
