@@ -11,6 +11,9 @@ export class Article {
     @Prop({ required: true })
     content: string;
 
+    @Prop({ type: [String], default: [] })
+    tags: string[];
+
     @Prop({ default: 0 })
     count_views: number;
 
@@ -24,16 +27,16 @@ export class Article {
     is_visible: boolean;
 
     @Prop({ required: true, index: true })
-    user_uuid: number;
-
-    @Prop({ type: { name: String, avatar: String }, default: {} })
-    user: { name: string; avatar: string };
+    user_uuid: string;
 
     @Prop({ type: [Number], default: [] })
     users_like: number[];
 
     @Prop({ type: [{ image_url: String }], default: [] })
     images: { image_url: string }[];
+
+    @Prop({ default: 1 })
+    tour_id: number;
 
     @Prop()
     created_at: Date;

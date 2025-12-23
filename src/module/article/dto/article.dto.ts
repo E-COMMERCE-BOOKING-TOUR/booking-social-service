@@ -22,12 +22,13 @@ export class ArticleDTO {
     @IsBoolean()
     is_visible?: boolean;
 
-    @IsInt()
-    @Min(1)
-    user_id: number;
-
     @IsOptional()
-    user?: { name: string; avatar: string };
+    @IsInt()
+    tour_id?: number;
+
+    @IsString()
+    @IsNotEmpty()
+    user_uuid: string;
 
     @IsOptional()
     @IsArray()

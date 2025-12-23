@@ -80,7 +80,11 @@ export class ArticleService {
         return comment;
     }
 
-    async getPopularArticles(limit: number): Promise<Article[]> {
-        return this.articleModel.find({ is_visible: true }).sort({ created_at: -1 }).limit(limit).exec();
+    async getPopularArticles(limit: number) {
+        const result = await this.articleModel.aggregate([
+            { $match: { is_visible: true } },
+            { $sample: { size: limit } }
+        ]).exec();
+        return result;
     }
 }

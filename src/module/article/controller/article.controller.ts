@@ -54,6 +54,7 @@ export class ArticleController {
 
     @MessagePattern('get_popular_articles')
     async getPopularArticles(@Payload() limit: number) {
-        return this.articleService.getPopularArticles(limit);
+        return await this.articleService.getPopularArticles(limit);
     }
+
 }
