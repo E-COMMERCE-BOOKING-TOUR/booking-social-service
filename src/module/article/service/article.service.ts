@@ -34,6 +34,10 @@ export class ArticleService {
         return this.articleModel.find({ user_id: userId }).sort({ created_at: -1 }).exec();
     }
 
+    async findLikedByUser(userId: number): Promise<Article[]> {
+        return this.articleModel.find({ users_like: userId, is_visible: true }).sort({ created_at: -1 }).exec();
+    }
+
     async update(id: string, dto: Partial<ArticleDTO>): Promise<Article | null> {
         return this.articleModel.findByIdAndUpdate(id, { ...dto, updated_at: new Date() }, { new: true }).exec();
     }
@@ -86,5 +90,22 @@ export class ArticleService {
             { $sample: { size: limit } }
         ]).exec();
         return result;
+    }
+
+    async findByTag(tag: string, limit: number): Promise<Article[]> {
+        return this.articleModel.find({ tags: tag, is_visible: true })
+            .sort({ created_at: -1 })
+            .limit(limit)
+            .exec();
+    }
+
+    async getTrendingTags(limit: number): Promise<{ _id: string, count: number }[]> {
+        return this.articleModel.aggregate([
+            { $match: { is_visible: true } },
+            { $unwind: "$tags" },
+            { $group: { _id: "$tags", count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: limit }
+        ]).exec();
     }
 }

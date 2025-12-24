@@ -27,7 +27,7 @@ export class Article {
     is_visible: boolean;
 
     @Prop({ required: true, index: true })
-    user_uuid: string;
+    user_id: number;
 
     @Prop({ type: [Number], default: [] })
     users_like: number[];
@@ -37,6 +37,9 @@ export class Article {
 
     @Prop({ default: 1 })
     tour_id: number;
+
+    @Prop({ type: [String], default: [] })
+    comments: string[];
 
     @Prop()
     created_at: Date;
