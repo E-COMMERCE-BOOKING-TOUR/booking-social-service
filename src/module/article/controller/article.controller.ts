@@ -54,6 +54,27 @@ export class ArticleController {
 
     @MessagePattern('get_popular_articles')
     async getPopularArticles(@Payload() limit: number) {
-        return this.articleService.getPopularArticles(limit);
+        return await this.articleService.getPopularArticles(limit);
     }
+
+    @MessagePattern('get_articles_by_tag')
+    async findByTag(@Payload() data: { tag: string, limit: number }) {
+        return this.articleService.findByTag(data.tag, data.limit);
+    }
+
+    @MessagePattern('get_articles_by_user')
+    async findArticlesByUser(@Payload() userId: number) {
+        return this.articleService.findByUser(userId);
+    }
+
+    @MessagePattern('get_articles_liked_by_user')
+    async findLikedByUser(@Payload() userId: number) {
+        return this.articleService.findLikedByUser(userId);
+    }
+
+    @MessagePattern('get_trending_tags')
+    async getTrendingTags(@Payload() limit: number) {
+        return this.articleService.getTrendingTags(limit);
+    }
+
 }
