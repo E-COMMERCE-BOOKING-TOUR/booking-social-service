@@ -7,6 +7,33 @@ export class ArticleImageDTO {
     image_url: string;
 }
 
+export class ArticleCommentDTO {
+
+    @IsInt()
+    @IsNotEmpty()
+    id: number;
+
+    @IsString()
+    @IsNotEmpty()
+    content: string;
+
+    @IsInt()
+    @IsOptional()
+    parent_id?: number;
+
+    @IsInt()
+    @IsOptional()
+    user_id?: number;
+
+    @IsDate()
+    @Type(() => Date)
+    created_at?: Date;
+
+    @IsDate()
+    @Type(() => Date)
+    updated_at?: Date;
+}
+
 export class ArticleDTO {
     @IsString()
     @IsNotEmpty()
@@ -22,18 +49,25 @@ export class ArticleDTO {
     @IsBoolean()
     is_visible?: boolean;
 
-    @IsInt()
-    @Min(1)
-    user_id: number;
-
     @IsOptional()
-    user?: { name: string; avatar: string };
+    @IsInt()
+    tour_id?: number;
+
+    @IsInt()
+    @IsNotEmpty()
+    user_id: number;
 
     @IsOptional()
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => ArticleImageDTO)
     images?: ArticleImageDTO[];
+
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ArticleCommentDTO)
+    comments?: ArticleCommentDTO[];
 
     @IsOptional()
     @IsDate()
