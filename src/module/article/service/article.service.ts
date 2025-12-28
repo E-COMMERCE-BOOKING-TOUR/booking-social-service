@@ -30,11 +30,11 @@ export class ArticleService {
         return this.articleModel.findById(id).exec();
     }
 
-    async findByUser(userId: number): Promise<Article[]> {
+    async findByUser(userId: string): Promise<Article[]> {
         return this.articleModel.find({ user_id: userId }).sort({ created_at: -1 }).exec();
     }
 
-    async findLikedByUser(userId: number): Promise<Article[]> {
+    async findLikedByUser(userId: string): Promise<Article[]> {
         return this.articleModel.find({ users_like: userId, is_visible: true }).sort({ created_at: -1 }).exec();
     }
 
@@ -47,27 +47,63 @@ export class ArticleService {
         return !!result;
     }
 
-    async like(articleId: string, userId: number): Promise<boolean> {
-        const article = await this.articleModel.findById(articleId);
-        if (!article) return false;
-        if (!article.users_like.includes(userId)) {
-            article.users_like.push(userId);
-            article.count_likes++;
-            await article.save();
+    async like(articleId: string, userId: string): Promise<boolean> {
+        console.log('[ArticleService.like] Called with:', { articleId, userId });
+        const result = await this.articleModel.findByIdAndUpdate(
+            articleId,
+            {
+                $addToSet: { users_like: userId },
+                $inc: { count_likes: 1 }
+            },
+            { new: true }
+        );
+        console.log('[ArticleService.like] Result:', result ? 'found' : 'not found');
+        if (!result) {
+            throw new Error(`Article not found: ${articleId}`);
         }
         return true;
     }
 
-    async unlike(articleId: string, userId: number): Promise<boolean> {
-        const article = await this.articleModel.findById(articleId);
-        if (!article) return false;
-        const index = article.users_like.indexOf(userId);
-        if (index > -1) {
-            article.users_like.splice(index, 1);
-            article.count_likes = Math.max(0, article.count_likes - 1);
-            await article.save();
+    async unlike(articleId: string, userId: string): Promise<boolean> {
+        const result = await this.articleModel.findByIdAndUpdate(
+            articleId,
+            {
+                $pull: { users_like: userId },
+                $inc: { count_likes: -1 }
+            },
+            { new: true }
+        );
+        if (result && result.count_likes < 0) {
+            await this.articleModel.findByIdAndUpdate(articleId, { count_likes: 0 });
         }
-        return true;
+        return !!result;
+    }
+
+    async bookmark(articleId: string, userId: string): Promise<boolean> {
+        const result = await this.articleModel.findByIdAndUpdate(
+            articleId,
+            { $addToSet: { users_bookmark: userId } },
+            { new: true }
+        );
+        return !!result;
+    }
+
+    async unbookmark(articleId: string, userId: string): Promise<boolean> {
+        const result = await this.articleModel.findByIdAndUpdate(
+            articleId,
+            { $pull: { users_bookmark: userId } },
+            { new: true }
+        );
+        return !!result;
+    }
+
+    async getBookmarkedArticles(userId: string, limit: number = 10, page: number = 1): Promise<Article[]> {
+        const skip = (page - 1) * limit;
+        return this.articleModel.find({ users_bookmark: userId, is_visible: true })
+            .sort({ created_at: -1 })
+            .skip(skip)
+            .limit(limit)
+            .exec();
     }
 
     async addComment(dto: any): Promise<Comment> {
@@ -84,17 +120,43 @@ export class ArticleService {
         return comment;
     }
 
-    async getPopularArticles(limit: number) {
+    async getPopularArticles(limit: number, page: number = 1) {
+        const skip = (page - 1) * limit;
         const result = await this.articleModel.aggregate([
             { $match: { is_visible: true } },
-            { $sample: { size: limit } }
+            {
+                $addFields: {
+                    trending_score: {
+                        $add: [
+                            { $multiply: ["$count_likes", 5] },
+                            { $multiply: ["$count_comments", 10] },
+                            { $multiply: ["$count_views", 1] }
+                        ]
+                    }
+                }
+            },
+            { $sort: { trending_score: -1, created_at: -1 } },
+            { $skip: skip },
+            { $limit: limit }
         ]).exec();
+        console.log('[getPopularArticles] First article users_like:', result[0]?.users_like);
         return result;
     }
 
-    async findByTag(tag: string, limit: number): Promise<Article[]> {
+    async findByFollowing(userIds: number[], limit: number, page: number = 1): Promise<Article[]> {
+        const skip = (page - 1) * limit;
+        return this.articleModel.find({ user_id: { $in: userIds }, is_visible: true })
+            .sort({ created_at: -1 })
+            .skip(skip)
+            .limit(limit)
+            .exec();
+    }
+
+    async findByTag(tag: string, limit: number, page: number = 1): Promise<Article[]> {
+        const skip = (page - 1) * limit;
         return this.articleModel.find({ tags: tag, is_visible: true })
             .sort({ created_at: -1 })
+            .skip(skip)
             .limit(limit)
             .exec();
     }

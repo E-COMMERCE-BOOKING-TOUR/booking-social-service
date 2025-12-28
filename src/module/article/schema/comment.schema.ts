@@ -12,7 +12,7 @@ export class Comment {
     article_id: string;
 
     @Prop({ required: true })
-    user_id: number;
+    user_id: string;
 
     @Prop({ type: { name: String, avatar: String }, default: {} })
     user: { name: string; avatar: string };

@@ -4,6 +4,8 @@ import { Article, ArticleSchema } from './schema/article.schema';
 import { Comment, CommentSchema } from './schema/comment.schema';
 import { ArticleService } from './service/article.service';
 import { ArticleController } from './controller/article.controller';
+import { AdminArticleService } from './service/admin-article.service';
+import { AdminArticleController } from './controller/admin-article.controller';
 
 @Module({
     imports: [
@@ -12,7 +14,7 @@ import { ArticleController } from './controller/article.controller';
             { name: Comment.name, schema: CommentSchema },
         ]),
     ],
-    controllers: [ArticleController],
-    providers: [ArticleService],
+    controllers: [ArticleController, AdminArticleController],
+    providers: [ArticleService, AdminArticleService],
 })
 export class ArticleModule { }

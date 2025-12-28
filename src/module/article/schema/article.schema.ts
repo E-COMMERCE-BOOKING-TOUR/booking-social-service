@@ -27,10 +27,13 @@ export class Article {
     is_visible: boolean;
 
     @Prop({ required: true, index: true })
-    user_id: number;
+    user_id: string;
 
-    @Prop({ type: [Number], default: [] })
-    users_like: number[];
+    @Prop({ type: [String], default: [] })
+    users_like: string[];
+
+    @Prop({ type: [String], default: [] })
+    users_bookmark: string[];
 
     @Prop({ type: [{ image_url: String }], default: [] })
     images: { image_url: string }[];

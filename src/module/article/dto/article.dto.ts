@@ -21,9 +21,9 @@ export class ArticleCommentDTO {
     @IsOptional()
     parent_id?: number;
 
-    @IsInt()
+    @IsString()
     @IsOptional()
-    user_id?: number;
+    user_id?: string;
 
     @IsDate()
     @Type(() => Date)
@@ -42,7 +42,7 @@ export class ArticleDTO {
 
     @IsString()
     @IsNotEmpty()
-    @MinLength(10)
+    @MinLength(3)
     content: string;
 
     @IsOptional()
@@ -53,9 +53,14 @@ export class ArticleDTO {
     @IsInt()
     tour_id?: number;
 
-    @IsInt()
+    @IsString()
     @IsNotEmpty()
-    user_id: number;
+    user_id: string;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    tags?: string[];
 
     @IsOptional()
     @IsArray()

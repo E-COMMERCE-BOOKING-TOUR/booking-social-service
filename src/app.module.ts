@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { InjectConnection, MongooseModule } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { ArticleModule } from './module/article/article.module';
+import { FollowModule } from './module/follow/follow.module';
 
 @Module({
     imports: [
@@ -17,6 +18,7 @@ import { ArticleModule } from './module/article/article.module';
             inject: [ConfigService],
         }),
         ArticleModule,
+        FollowModule,
     ],
     controllers: [],
     providers: [],
