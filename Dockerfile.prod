@@ -22,10 +22,10 @@ RUN npm ci --only=production && npm cache clean --force
 COPY --from=builder /app/dist ./dist
 
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S appuser -u 1001 -G nodejs && \
-    chown -R appuser:nodejs /app
+    adduser -S nestjs -u 1001 -G nodejs && \
+    chown -R nestjs:nodejs /app
 
-USER appuser
+USER nestjs
 
 EXPOSE 3001
 
