@@ -107,12 +107,14 @@ export class ArticleService {
     }
 
     async addComment(dto: any): Promise<Comment> {
+        console.log('[addComment] Received dto:', JSON.stringify(dto));
         const comment = new this.commentModel({
             ...dto,
             created_at: new Date(),
             updated_at: new Date(),
         });
         await comment.save();
+        console.log('[addComment] Saved comment:', JSON.stringify(comment.toObject()));
 
         // Update article comment count
         await this.articleModel.findByIdAndUpdate(dto.article_id, { $inc: { count_comments: 1 } });
@@ -137,19 +139,48 @@ export class ArticleService {
             },
             { $sort: { trending_score: -1, created_at: -1 } },
             { $skip: skip },
-            { $limit: limit }
+            { $limit: limit },
+            // Join comments from comments collection
+            {
+                $lookup: {
+                    from: 'comments',
+                    let: { articleId: { $toString: '$_id' } },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$article_id', '$$articleId'] } } },
+                        { $sort: { created_at: 1 } }
+                    ],
+                    as: 'comments'
+                }
+            }
         ]).exec();
         console.log('[getPopularArticles] First article users_like:', result[0]?.users_like);
+        console.log('[getPopularArticles] First article comments count:', result[0]?.comments?.length);
         return result;
     }
 
     async findByFollowing(userIds: number[], limit: number, page: number = 1): Promise<Article[]> {
         const skip = (page - 1) * limit;
-        return this.articleModel.find({ user_id: { $in: userIds }, is_visible: true })
-            .sort({ created_at: -1 })
-            .skip(skip)
-            .limit(limit)
-            .exec();
+        // Convert number[] to string[] for user_id matching, filter out null/undefined
+        const userIdStrings = userIds.filter(id => id != null).map(id => id.toString());
+        if (userIdStrings.length === 0) return [];
+        return this.articleModel.aggregate([
+            { $match: { user_id: { $in: userIdStrings }, is_visible: true } },
+            { $sort: { created_at: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            // Join comments from comments collection
+            {
+                $lookup: {
+                    from: 'comments',
+                    let: { articleId: { $toString: '$_id' } },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$article_id', '$$articleId'] } } },
+                        { $sort: { created_at: 1 } }
+                    ],
+                    as: 'comments'
+                }
+            }
+        ]).exec();
     }
 
     async findByTag(tag: string, limit: number, page: number = 1): Promise<Article[]> {
@@ -169,5 +200,48 @@ export class ArticleService {
             { $sort: { count: -1 } },
             { $limit: limit }
         ]).exec();
+    }
+
+    /**
+     * Update user name across all articles and comments
+     * @deprecated Use syncUserInfo instead
+     */
+    async updateUserName(userId: string, name: string): Promise<{ articlesUpdated: number; commentsUpdated: number }> {
+        return this.syncUserInfo(userId, name);
+    }
+
+    /**
+     * Sync user info (name, avatar) across all articles and comments
+     */
+    async syncUserInfo(userId: string, name?: string, avatar?: string): Promise<{ articlesUpdated: number; commentsUpdated: number }> {
+        console.log(`[syncUserInfo] Syncing info for user ${userId}: name="${name}", avatar="${avatar}"`);
+
+        const updateData: any = {};
+        if (name) updateData['user.name'] = name;
+        if (avatar) updateData['user.avatar'] = avatar;
+
+        if (Object.keys(updateData).length === 0) {
+            return { articlesUpdated: 0, commentsUpdated: 0 };
+        }
+
+        // Update all articles by this user
+        const articleResult = await this.articleModel.updateMany(
+            { user_id: userId },
+            { $set: updateData }
+        );
+
+        // Update all comments by this user
+        const commentResult = await this.commentModel.updateMany(
+            { user_id: userId.toString() },
+            { $set: updateData }
+        );
+
+        const result = {
+            articlesUpdated: articleResult.modifiedCount,
+            commentsUpdated: commentResult.modifiedCount
+        };
+
+        console.log(`[syncUserInfo] Updated ${result.articlesUpdated} articles and ${result.commentsUpdated} comments for user ${userId}`);
+        return result;
     }
 }

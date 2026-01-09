@@ -52,6 +52,16 @@ export class ArticleController {
         return this.articleService.addComment(dto);
     }
 
+    @MessagePattern('update_user_name')
+    async updateUserName(@Payload() data: { userId: string; name: string }) {
+        return this.articleService.updateUserName(data.userId, data.name);
+    }
+
+    @MessagePattern('sync_user_info')
+    async syncUserInfo(@Payload() data: { userId: string; name?: string; avatar?: string }) {
+        return this.articleService.syncUserInfo(data.userId, data.name, data.avatar);
+    }
+
     @MessagePattern('get_popular_articles')
     async getPopularArticles(@Payload() data: { limit: number, page?: number }) {
         return await this.articleService.getPopularArticles(data.limit, data.page);

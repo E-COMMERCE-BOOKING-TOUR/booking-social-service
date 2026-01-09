@@ -34,6 +34,16 @@ export class ArticleCommentDTO {
     updated_at?: Date;
 }
 
+export class UserInfoDTO {
+    @IsString()
+    @IsOptional()
+    name?: string;
+
+    @IsString()
+    @IsOptional()
+    avatar?: string;
+}
+
 export class ArticleDTO {
     @IsString()
     @IsNotEmpty()
@@ -58,6 +68,11 @@ export class ArticleDTO {
     user_id: string;
 
     @IsOptional()
+    @ValidateNested()
+    @Type(() => UserInfoDTO)
+    user?: UserInfoDTO;
+
+    @IsOptional()
     @IsArray()
     @IsString({ each: true })
     tags?: string[];
@@ -73,6 +88,10 @@ export class ArticleDTO {
     @ValidateNested({ each: true })
     @Type(() => ArticleCommentDTO)
     comments?: ArticleCommentDTO[];
+
+    @IsOptional()
+    @IsString()
+    weather?: string;
 
     @IsOptional()
     @IsDate()

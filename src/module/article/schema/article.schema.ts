@@ -29,6 +29,9 @@ export class Article {
     @Prop({ required: true, index: true })
     user_id: string;
 
+    @Prop({ type: { name: String, avatar: String }, default: {} })
+    user: { name: string; avatar: string };
+
     @Prop({ type: [String], default: [] })
     users_like: string[];
 
@@ -43,6 +46,9 @@ export class Article {
 
     @Prop({ type: [String], default: [] })
     comments: string[];
+
+    @Prop({ type: String, default: null })
+    weather: string;
 
     @Prop()
     created_at: Date;
