@@ -16,6 +16,7 @@ export class ArticleService {
         const createdArticle = new this.articleModel({
             ...dto,
             images: dto.images || [],
+            is_visible: true, // Make post visible immediately
             created_at: new Date(),
             updated_at: new Date(),
         });
@@ -124,20 +125,41 @@ export class ArticleService {
 
     async getPopularArticles(limit: number, page: number = 1) {
         const skip = (page - 1) * limit;
+        const now = new Date();
         const result = await this.articleModel.aggregate([
             { $match: { is_visible: true } },
             {
                 $addFields: {
-                    trending_score: {
-                        $add: [
-                            { $multiply: ["$count_likes", 5] },
-                            { $multiply: ["$count_comments", 10] },
-                            { $multiply: ["$count_views", 1] }
+                    // Calculate age in hours
+                    age_hours: {
+                        $divide: [
+                            { $subtract: [now, "$created_at"] },
+                            1000 * 60 * 60 // milliseconds to hours
                         ]
                     }
                 }
             },
-            { $sort: { trending_score: -1, created_at: -1 } },
+            {
+                $addFields: {
+                    // Recency boost: new posts (< 24h) get 100 points, decreasing with age
+                    recency_boost: {
+                        $max: [0, { $subtract: [100, { $multiply: ["$age_hours", 2] }] }]
+                    },
+                    trending_score: {
+                        $add: [
+                            { $multiply: [{ $ifNull: ["$count_likes", 0] }, 5] },
+                            { $multiply: [{ $ifNull: ["$count_comments", 0] }, 10] },
+                            { $multiply: [{ $ifNull: ["$count_views", 0] }, 1] }
+                        ]
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    final_score: { $add: ["$trending_score", "$recency_boost"] }
+                }
+            },
+            { $sort: { final_score: -1, created_at: -1 } },
             { $skip: skip },
             { $limit: limit },
             // Join comments from comments collection
@@ -242,6 +264,139 @@ export class ArticleService {
         };
 
         console.log(`[syncUserInfo] Updated ${result.articlesUpdated} articles and ${result.commentsUpdated} comments for user ${userId}`);
+        return result;
+    }
+
+    /**
+     * Explore algorithm - Discovery-focused content recommendation
+     * Features:
+     * 1. Personalization: Prioritize content from followed users
+     * 2. Diversity: Limit articles per user to avoid feed domination
+     * 3. Serendipity: Mix in random content for discovery
+     * 4. Exclusion: Skip already liked/viewed articles
+     */
+    async getExploreArticles(
+        limit: number,
+        page: number = 1,
+        userId?: string,
+        followingUserIds?: string[],
+        likedArticleIds?: string[],
+        tourIds?: string[]
+    ) {
+        const skip = (page - 1) * limit;
+        const now = new Date();
+
+        // Build exclusion list
+        const excludeIds = likedArticleIds?.map(id => {
+            try { return new (require('mongoose').Types.ObjectId)(id); } catch { return null; }
+        }).filter(Boolean) || [];
+
+        // Pipeline stages
+        const basePipeline: any[] = [
+            {
+                $match: {
+                    is_visible: true,
+                    ...(excludeIds.length > 0 ? { _id: { $nin: excludeIds } } : {}),
+                    ...(tourIds?.length ? { tour_id: { $in: tourIds } } : {})
+                }
+            },
+        ];
+
+        // Calculate scores
+        const scoringStage = {
+            $addFields: {
+                // Age in hours
+                age_hours: {
+                    $divide: [
+                        { $subtract: [now, "$created_at"] },
+                        1000 * 60 * 60
+                    ]
+                },
+                // Check if from followed user
+                is_from_following: followingUserIds?.length
+                    ? { $in: ["$user_id", followingUserIds] }
+                    : false,
+            }
+        };
+
+        const calculateScores = {
+            $addFields: {
+                // Recency score: newer = higher (max 100, decays over 48h)
+                recency_score: {
+                    $max: [0, { $subtract: [100, { $multiply: ["$age_hours", 2] }] }]
+                },
+                // Engagement score
+                engagement_score: {
+                    $add: [
+                        { $multiply: [{ $ifNull: ["$count_likes", 0] }, 3] },
+                        { $multiply: [{ $ifNull: ["$count_comments", 0] }, 5] },
+                        { $multiply: [{ $ifNull: ["$count_views", 0] }, 0.5] }
+                    ]
+                },
+                // Following bonus (50 points if from followed user)
+                following_bonus: {
+                    $cond: ["$is_from_following", 50, 0]
+                },
+                // Random factor for serendipity (0-30 points)
+                random_factor: { $multiply: [{ $rand: {} }, 30] }
+            }
+        };
+
+        const finalScore = {
+            $addFields: {
+                explore_score: {
+                    $add: [
+                        "$recency_score",
+                        "$engagement_score",
+                        "$following_bonus",
+                        "$random_factor"
+                    ]
+                }
+            }
+        };
+
+        // Diversity: Group by user and limit per user
+        const diversityPipeline = [
+            { $sort: { explore_score: -1 } },
+            {
+                $group: {
+                    _id: "$user_id",
+                    articles: { $push: "$$ROOT" }
+                }
+            },
+            {
+                $project: {
+                    articles: { $slice: ["$articles", 3] } // Max 3 articles per user
+                }
+            },
+            { $unwind: "$articles" },
+            { $replaceRoot: { newRoot: "$articles" } },
+            { $sort: { explore_score: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            // Join comments
+            {
+                $lookup: {
+                    from: 'comments',
+                    let: { articleId: { $toString: '$_id' } },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$article_id', '$$articleId'] } } },
+                        { $sort: { created_at: 1 } }
+                    ],
+                    as: 'comments'
+                }
+            }
+        ];
+
+        const result = await this.articleModel.aggregate([
+            ...basePipeline,
+            scoringStage,
+            calculateScores,
+            finalScore,
+            ...diversityPipeline
+        ]).exec();
+
+        console.log(`[getExploreArticles] Returned ${result.length} articles for user ${userId || 'anonymous'}`);
         return result;
     }
 }

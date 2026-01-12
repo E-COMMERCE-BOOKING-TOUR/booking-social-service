@@ -107,4 +107,23 @@ export class ArticleController {
         return this.articleService.getBookmarkedArticles(data.userId, data.limit, data.page);
     }
 
+    @MessagePattern('get_explore_articles')
+    async getExploreArticles(@Payload() data: {
+        limit: number,
+        page?: number,
+        userId?: string,
+        followingUserIds?: string[],
+        likedArticleIds?: string[],
+        tourIds?: string[]
+    }) {
+        return this.articleService.getExploreArticles(
+            data.limit,
+            data.page,
+            data.userId,
+            data.followingUserIds,
+            data.likedArticleIds,
+            data.tourIds
+        );
+    }
+
 }
