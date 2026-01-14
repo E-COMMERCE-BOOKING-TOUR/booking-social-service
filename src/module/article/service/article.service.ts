@@ -32,11 +32,41 @@ export class ArticleService {
     }
 
     async findByUser(userId: string): Promise<Article[]> {
-        return this.articleModel.find({ user_id: userId }).sort({ created_at: -1 }).exec();
+        return this.articleModel.aggregate([
+            { $match: { user_id: userId } },
+            { $sort: { created_at: -1 } },
+            // Join comments from comments collection
+            {
+                $lookup: {
+                    from: 'comments',
+                    let: { articleId: { $toString: '$_id' } },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$article_id', '$$articleId'] } } },
+                        { $sort: { created_at: 1 } }
+                    ],
+                    as: 'comments'
+                }
+            }
+        ]).exec();
     }
 
     async findLikedByUser(userId: string): Promise<Article[]> {
-        return this.articleModel.find({ users_like: userId, is_visible: true }).sort({ created_at: -1 }).exec();
+        return this.articleModel.aggregate([
+            { $match: { users_like: userId, is_visible: true } },
+            { $sort: { created_at: -1 } },
+            // Join comments from comments collection
+            {
+                $lookup: {
+                    from: 'comments',
+                    let: { articleId: { $toString: '$_id' } },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$article_id', '$$articleId'] } } },
+                        { $sort: { created_at: 1 } }
+                    ],
+                    as: 'comments'
+                }
+            }
+        ]).exec();
     }
 
     async update(id: string, dto: Partial<ArticleDTO>): Promise<Article | null> {
